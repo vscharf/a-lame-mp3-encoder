@@ -3,6 +3,7 @@
 #include <algorithm> // generate_n
 #include <exception> // terminate
 #include <iterator> // istream_iterator
+#include <string>
 #include <utility> // swap
 
 namespace vscharf {
@@ -63,9 +64,9 @@ inline std::string read_string(std::istream& in)
 
 // Constructs a WavDecoder object, fills the WavHeader and seeks to
 // the first data chunk.
-WavDecoder::WavDecoder(const std::string wav_file) : file_(wav_file)
+WavDecoder::WavDecoder(std::istream& in) : in_(in)
 {
-  if(!file_) throw decoder_error("Couldn't open file!");
+  if(!in_) throw decoder_error("Couldn't open file!");
   decode_wav_header();
 }
 
@@ -73,8 +74,8 @@ WavDecoder::WavDecoder(const std::string wav_file) : file_(wav_file)
 // already been read and the next 4 bytes contain the chunk size.
 void WavDecoder::skip_chunk()
 {
-  auto chunk_size = read_integral<uint32_t>(file_);
-  file_.ignore(chunk_size);
+  auto chunk_size = read_integral<uint32_t>(in_);
+  in_.ignore(chunk_size);
 }
 
 // Decodes the RIFF/WAVE header and fills the information into
@@ -82,37 +83,37 @@ void WavDecoder::skip_chunk()
 // http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
 void WavDecoder::decode_wav_header()
 {
-  if(read_string<4>(file_) != "RIFF") throw decoder_error("No RIFF file");
-  uint32_t file_size = read_integral<uint32_t>(file_);
-  if(read_string<4>(file_) != "WAVE") throw decoder_error("No WAVE type");
+  if(read_string<4>(in_) != "RIFF") throw decoder_error("No RIFF file");
+  uint32_t in_size = read_integral<uint32_t>(in_);
+  if(read_string<4>(in_) != "WAVE") throw decoder_error("No WAVE type");
 
-  while(file_.good() && read_string<4>(file_) != "fmt ") skip_chunk();
-  if(!file_.good()) throw decoder_error("No format chunk");
+  while(in_.good() && read_string<4>(in_) != "fmt ") skip_chunk();
+  if(!in_.good()) throw decoder_error("No format chunk");
 
-  auto fmt_chunk_size = read_integral<uint32_t>(file_);
+  auto fmt_chunk_size = read_integral<uint32_t>(in_);
 
-  if(read_integral<uint16_t>(file_) != 0x1) throw decoder_error("No PCM format");
-  header_.channels = read_integral<uint16_t>(file_);
-  header_.samplesPerSec = read_integral<uint32_t>(file_);
-  header_.avgBytesPerSec = read_integral<uint32_t>(file_);
-  header_.blockAlign = read_integral<uint16_t>(file_);
-  header_.bitsPerSample = read_integral<uint16_t>(file_);
+  if(read_integral<uint16_t>(in_) != 0x1) throw decoder_error("No PCM format");
+  header_.channels = read_integral<uint16_t>(in_);
+  header_.samplesPerSec = read_integral<uint32_t>(in_);
+  header_.avgBytesPerSec = read_integral<uint32_t>(in_);
+  header_.blockAlign = read_integral<uint16_t>(in_);
+  header_.bitsPerSample = read_integral<uint16_t>(in_);
 
   // sample size is M-byte with M = block-align / Nchannels
   header_.bytesPerSample = header_.blockAlign / header_.channels;
   
   // skip the rest of the fmt header ...
-  file_.ignore(fmt_chunk_size - 16);
+  in_.ignore(fmt_chunk_size - 16);
 }
 
-// Moves the current read position of file_ to point to the size of a
+// Moves the current read position of in_ to point to the size of a
 // data chunk. Assumes the file position is directly before the
 // beginning of a new chunk, i.e. the next 4 bytes are the ckID.
 void WavDecoder::seek_data()
 {
-  file_.peek(); // make sure eof is set properly if we are at the end of the file
-  while(file_.good() && read_string<4>(file_) != "data") skip_chunk();
-  if(!file_) throw decoder_error("Couldn't find data chunk!");
+  in_.peek(); // make sure eof is set properly if we are at the end of the file
+  while(in_.good() && read_string<4>(in_) != "data") skip_chunk();
+  if(!in_) throw decoder_error("Couldn't find data chunk!");
 }
 
 // Read the next sample from the current data chunk. Seek the next
@@ -121,13 +122,13 @@ const WavDecoder::char_buffer& WavDecoder::read_samples(uint32_t nsamples)
 {
   if(!remaining_chunk_size_) {
     seek_data();
-    if(file_.eof()) { // file finished
+    if(in_.eof()) { // file finished
       buf_.resize(0);
       return buf_;
     }
 
     // read chunk size
-    remaining_chunk_size_ = read_integral<uint32_t>(file_);
+    remaining_chunk_size_ = read_integral<uint32_t>(in_);
     if(!remaining_chunk_size_) throw decoder_error("Empty data chunk!");
   }
 
@@ -141,7 +142,7 @@ const WavDecoder::char_buffer& WavDecoder::read_samples(uint32_t nsamples)
 
   if(header_.bitsPerSample == 16) {
     // directly stored as signed short ints, no conversion necessary (except endiadness)
-    file_.read(reinterpret_cast<char*>(&buf_[0]), 2*buf_.size());
+    in_.read(reinterpret_cast<char*>(&buf_[0]), 2*buf_.size());
     if(!is_little_endian()) {
       for(int16_t& s : buf_) {
 	s = ((s & 0xFF) << 8) | ((s & 0xFF00) >> 8);
@@ -149,7 +150,7 @@ const WavDecoder::char_buffer& WavDecoder::read_samples(uint32_t nsamples)
     }
   } else if(header_.bitsPerSample == 8) {
     // stored as unsigned chars --> convert to signed short ints
-    auto input_it = std::istream_iterator<unsigned char>(file_);
+    auto input_it = std::istream_iterator<unsigned char>(in_);
     std::generate_n(buf_.begin(), buf_.size(),
 		    [&input_it]() -> int16_t {
 		      return 257*(*input_it++) - 32768; // [0,255] to [-32768,32767]
@@ -158,7 +159,7 @@ const WavDecoder::char_buffer& WavDecoder::read_samples(uint32_t nsamples)
     throw decoder_error("Resolution not supported.");
   }
 
-  remaining_chunk_size_ -= file_.gcount();
+  remaining_chunk_size_ -= in_.gcount();
 
   return buf_;
 }
@@ -168,9 +169,11 @@ const WavDecoder::char_buffer& WavDecoder::read_samples(uint32_t nsamples)
 #ifdef TEST_WAV
 // some basic unit testing
 #include <cassert>
+#include <fstream>
 #include <iostream>
 int main(int argc, char* argv[]) {
-  vscharf::WavDecoder w("test_data/sound.wav");
+  std::ifstream input_file("test_data/sound.wav");
+  vscharf::WavDecoder w(input_file);
   assert(w.get_header().channels == 1);
   assert(w.get_header().samplesPerSec == 44100);
   assert(w.get_header().avgBytesPerSec == 0x15888);

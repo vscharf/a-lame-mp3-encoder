@@ -18,5 +18,5 @@ bin/wav_test: src/wavdecoder.cpp
 bin/dir_test: src/helper.cpp
 	@$(CXX) -DTEST_DIR $(CXXFLAGS) $(CPPFLAGS) -o $@ $^
 
-bin/enc_test: src/encoder.cpp src/wavdecoder.cpp
+bin/enc_test: src/mp3encoder.cpp src/wavdecoder.cpp
 	@$(CXX) -DTEST_ENCODER $(CXXFLAGS) $(CPPFLAGS) -o $@ $^ -I/usr/include/lame -lmp3lame

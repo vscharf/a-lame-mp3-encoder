@@ -3,9 +3,8 @@
 #define ALAMEMP3ENCODER_WAVDECODER_H
 
 #include <cstdint>
-#include <fstream>
+#include <istream>
 #include <stdexcept>
-#include <string>
 #include <vector>
 
 namespace vscharf {
@@ -17,6 +16,8 @@ public:
 };
 
 // ======== classes ========
+// Reads RIFF/WAVE files and decodes them into 16-bit signed PCM data.
+// Objects of this class are not thread-safe.
 class WavDecoder {
 public:
   using char_buffer = std::vector<int16_t>;
@@ -30,10 +31,10 @@ public:
     uint32_t bytesPerSample;
   };
 
-  WavDecoder(const std::string wav_file);
+  WavDecoder(std::istream& in);
   
   const WavHeader& get_header() const { return header_; }
-  bool has_next() const { file_.peek(); return file_.good(); }
+  bool has_next() const { in_.peek(); return in_.good(); }
   // make sure eof is triggered --^
 
   // Read up to nsamples samples (default = 1). The size of
@@ -48,7 +49,7 @@ private:
   void seek_data();
 
   WavHeader header_;
-  mutable std::ifstream file_; // mutable to allow has_next to peek
+  std::istream& in_; // mutable to allow has_next to peek
   char_buffer buf_;
   uint32_t remaining_chunk_size_ = 0;
 };

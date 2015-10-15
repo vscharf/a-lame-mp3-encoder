@@ -73,18 +73,16 @@ void LameEncoder::encode(WavDecoder& in, std::ostream& out, uint32_t nsamples /*
 
     auto n_read_samples = inbuf.size() / in.get_header().bytesPerSample;
 
-    // TODO for big-endian host byte-order need to swap bytes
-    // TODO actual type depends on bitsPerSample
     int n;
     if(in.get_header().channels > 1) {
       n = lame_encode_buffer_interleaved(gfp_,
-					 reinterpret_cast<int16_t*>(const_cast<char*>(&inbuf[0])),
+					 const_cast<int16_t*>(&inbuf[0]),
 					 n_read_samples / in.get_header().channels,
 					 reinterpret_cast<unsigned char*>(&buf_[0]),
 					 buf_.size());
     } else {
       n = lame_encode_buffer(gfp_,
-			     reinterpret_cast<int16_t*>(const_cast<char*>(&inbuf[0])),
+			     const_cast<int16_t*>(&inbuf[0]),
 			     nullptr,
 			     n_read_samples,
 			     reinterpret_cast<unsigned char*>(&buf_[0]),

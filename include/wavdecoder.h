@@ -6,6 +6,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace vscharf {
 
@@ -18,7 +19,7 @@ public:
 // ======== classes ========
 class WavDecoder {
 public:
-  using char_buffer = std::string;
+  using char_buffer = std::vector<int16_t>;
 
   struct WavHeader {
     uint16_t channels;
@@ -38,7 +39,7 @@ public:
   // Read up to nsamples samples (default = 1). The size of
   // char_buffer will represent the actual number of samples read. The
   // reference is valid up to the next call to read_samples.
-  // The buffer contains little-endian sample data.
+  // The buffer contains 16-bit resolution PCM samples.
   const char_buffer& read_samples(uint32_t nsamples);
 
 private:

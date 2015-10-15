@@ -1,22 +1,58 @@
 #include "wavdecoder.h"
 
-#include <iostream>
+#include <algorithm> // generate_n
+#include <exception> // terminate
+#include <iterator> // istream_iterator
+#include <utility> // swap
 
 namespace vscharf {
 
+// constexpr bool little_endian()
+// {
+//   return ((char*)endiadness)[0] == 0xDD;
+// }
+
 // ======== helper functions ========
 namespace {
+
+constexpr static uint32_t endiadness{0xAABBCCDD};
+
+inline bool is_little_endian() {
+  return ((unsigned char*)&endiadness)[0] == 0xDD;
+}
+
 template<typename Result>
-Result read_integral(std::istream& in)
+inline Result read_integral(std::istream& in)
 {
   static_assert(std::is_integral<Result>::value, "only integral types");
-  static std::string bytes(sizeof(Result), 0); // TODO is this thread-safe (thread local statics)?
+  static thread_local std::string bytes(sizeof(Result), 0);
   in.read(&bytes[0], sizeof(Result));  // explictely allowed since C++11
-  return *reinterpret_cast<const Result*>(bytes.data()); // TODO byte order must be little-endian
+  if(!is_little_endian()) {
+    switch(sizeof(Result)) {
+    case 1:
+      break;
+    case 2:
+      std::swap(bytes[0], bytes[1]);
+      break;
+    case 4:
+      std::swap(bytes[0], bytes[3]);
+      std::swap(bytes[1], bytes[2]);
+      break;
+    case 8:
+      std::swap(bytes[0], bytes[7]);
+      std::swap(bytes[1], bytes[6]);
+      std::swap(bytes[2], bytes[5]);
+      std::swap(bytes[3], bytes[4]);
+      break;
+    default:
+      std::terminate();
+    }
+  }
+  return *reinterpret_cast<const Result*>(bytes.data());
 } // read_integral
 
 template<std::size_t Width>
-std::string read_string(std::istream& in)
+inline std::string read_string(std::istream& in)
 {
   std::string bytes(Width, 0);
   in.read(&bytes[0], Width); // explictely allowed since C++11
@@ -31,9 +67,6 @@ WavDecoder::WavDecoder(const std::string wav_file) : file_(wav_file)
 {
   if(!file_) throw decoder_error("Couldn't open file!");
   decode_wav_header();
-
-  // adjust buffer size accordingly
-  buf_.resize(header_.bytesPerSample, 0);
 }
 
 // Skips the next chunk of the wave file. Assumes that the ckID has
@@ -99,14 +132,32 @@ const WavDecoder::char_buffer& WavDecoder::read_samples(uint32_t nsamples)
   }
 
   // make sure there is enough space in the buffer to accomodate nsamples
-  buf_.resize(nsamples * header_.bytesPerSample, 0);
+  buf_.resize(nsamples * header_.channels, 0);
 
   // in case not enough samples are available to fulfill nsamples_
-  if(buf_.size() > remaining_chunk_size_) {
-    buf_.resize(remaining_chunk_size_, 0);
+  if(buf_.size() * header_.bytesPerSample > remaining_chunk_size_) {
+    buf_.resize(remaining_chunk_size_ / header_.bytesPerSample, 0);
   }
 
-  file_.read(&buf_[0], buf_.size());  // explictely allowed since C++11
+  if(header_.bitsPerSample == 16) {
+    // directly stored as signed short ints, no conversion necessary (except endiadness)
+    file_.read(reinterpret_cast<char*>(&buf_[0]), 2*buf_.size());
+    if(!is_little_endian()) {
+      for(int16_t& s : buf_) {
+	s = ((s & 0xFF) << 8) | ((s & 0xFF00) >> 8);
+      }
+    }
+  } else if(header_.bitsPerSample == 8) {
+    // stored as unsigned chars --> convert to signed short ints
+    auto input_it = std::istream_iterator<unsigned char>(file_);
+    std::generate_n(buf_.begin(), buf_.size(),
+		    [&input_it]() -> int16_t {
+		      return 257*(*input_it++) - 32768; // [0,255] to [-32768,32767]
+		    });
+  } else {
+    throw decoder_error("Resolution not supported.");
+  }
+
   remaining_chunk_size_ -= file_.gcount();
 
   return buf_;
@@ -127,21 +178,18 @@ int main(int argc, char* argv[]) {
   assert(w.get_header().bitsPerSample == 16);
 
   std::size_t nsamples = 0;
-  std::size_t nbytes = 0;
 
   const auto& buf = w.read_samples(1);
   ++nsamples;
-  nbytes += buf.size();
  
   while(w.has_next()) {
     const auto& buf = w.read_samples(10);
-    if(w.has_next()) assert(buf.size() == 20);
-    nsamples += buf.size() / 2;
-    nbytes += buf.size();
+    if(w.has_next()) assert(buf.size() == 10);
+    nsamples += buf.size();
   }
 
+  std::cout << nsamples << std::endl;
   assert(nsamples == 0x10266 / 2);
-  assert(nbytes == 0x10266);
 
   std::cout << "Test finished successfully!" << std::endl;
 }

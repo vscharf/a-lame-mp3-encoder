@@ -1,11 +1,14 @@
 #include "helper.h"
 
+#include <fstream>
+
 #ifdef WINDOWS
 #else
 #include <dirent.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/types.h>
+#include <arpa/inet.h> // for 
 #endif
 
 namespace vscharf {
@@ -18,7 +21,9 @@ const char* posix_error::what() const noexcept
 namespace {
 #ifdef WINDOWS
 #else
-class scoped_dir { // RAII for opendir/closedir
+// helper struct that implements RAII for the paired opendir/closedir
+// calls
+class scoped_dir {
 public:
   scoped_dir(const std::string& path) : _dirp(opendir(path.c_str())) {
     if(!_dirp) throw posix_error(errno);
@@ -48,20 +53,23 @@ std::vector<std::string> directory_entries(const std::string& path)
 #endif
   return entries; // rely on copy ellision / move
 } // directory_entries
-  
+
 } // namespace vscharf
 
 
-#ifdef TEST
+#ifdef TEST_DIR
+// some basic unit testing
 #include <algorithm> // std::equal
 #include <cassert>
+#include <iostream> // cout
 int main()
 {
   using std::begin;
   using std::end;
   {
     // assumes the test is called in the project root directory
-    std::vector<std::string> expected = {".", "..", "empty_dir", "file1", "file2", "file3"};
+    std::vector<std::string> expected = {".", "..", "empty_dir", "file1",
+					 "file2", "file3", "sound.wav"};
     try {
       std::vector<std::string> actual = vscharf::directory_entries("test_data");
       std::sort(begin(actual), end(actual));
@@ -88,6 +96,7 @@ int main()
     try {
       std::vector<std::string> actual = vscharf::directory_entries("non_existent_dir");
     } catch(const vscharf::posix_error&) {
+      std::cout << "Test finished successfully!" << std::endl;
       return 0;
     }
     assert(false && "Expected exception");

@@ -38,7 +38,8 @@ private:
 #endif
 } // anonymous namespace
 
-std::vector<std::string> directory_entries(const std::string& path)
+// take argument by value as it is modified later
+std::vector<std::string> directory_entries(std::string path)
 {
   std::vector<std::string> entries;
   scoped_dir dir(path);
@@ -46,8 +47,9 @@ std::vector<std::string> directory_entries(const std::string& path)
 #else
   errno = 0;
   dirent* current = nullptr;
+  path += '/';
   while((current = readdir(dir.dir())) != nullptr) {
-    entries.emplace_back(current->d_name);
+    entries.push_back(path + current->d_name);
   }
   if(errno) throw posix_error(errno);
 #endif
@@ -68,8 +70,9 @@ int main()
   using std::end;
   {
     // assumes the test is called in the project root directory
-    std::vector<std::string> expected = {".", "..", "empty_dir", "file1",
-					 "file2", "file3", "sound.wav"};
+    std::vector<std::string> expected = {
+      "test_data/.", "test_data/..", "test_data/empty_dir", "test_data/file1",
+      "test_data/file2", "test_data/file3", "test_data/sound.wav"};
     try {
       std::vector<std::string> actual = vscharf::directory_entries("test_data");
       std::sort(begin(actual), end(actual));
@@ -81,7 +84,8 @@ int main()
 
   {
     // assumes the test is called in the project root directory
-    std::vector<std::string> expected = {".", ".."};
+    std::vector<std::string> expected = {
+      "test_data/empty_dir/.", "test_data/empty_dir/.."};
     try {
       std::vector<std::string> actual = vscharf::directory_entries("test_data/empty_dir");
       std::sort(begin(actual), end(actual));

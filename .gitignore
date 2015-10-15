@@ -26,3 +26,9 @@
 *.exe
 *.out
 *.app
+
+# Emacs
+*~
+
+# Binary directory
+bin/*

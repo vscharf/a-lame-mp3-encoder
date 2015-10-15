@@ -20,3 +20,6 @@ bin/dir_test: src/helper.cpp
 
 bin/enc_test: src/mp3encoder.cpp src/wavdecoder.cpp
 	@$(CXX) -DTEST_ENCODER $(CXXFLAGS) $(CPPFLAGS) -o $@ $^ -I/usr/include/lame -lmp3lame
+
+bin/a-lame-mp3-encoder: src/mp3encoder.cpp src/wavdecoder.cpp src/helper.cpp src/batch-encoder.cpp
+	@$(CXX) $(CXXFLAGS) $(CPPFLAGS) -o $@ $^ -I/usr/include/lame -lmp3lame -pthread

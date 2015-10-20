@@ -71,8 +71,8 @@ int main()
   {
     // assumes the test is called in the project root directory
     std::vector<std::string> expected = {
-      "test_data/.", "test_data/..", "test_data/empty_dir", "test_data/file1",
-      "test_data/file2", "test_data/file3", "test_data/sound.wav"};
+      "test_data/.", "test_data/..", "test_data/empty_dir",
+      "test_data/sound.wav", "test_data/sound1.wav", "test_data/sound2.wav"};
     try {
       std::vector<std::string> actual = vscharf::directory_entries("test_data");
       std::sort(begin(actual), end(actual));

@@ -30,3 +30,5 @@ Compilation is done using cmake. The only option to be given is the include dire
 ## Binaries
 Successful compilation will produce four binaries, three test and the actual encoder. All tests should finish successfully when start from the root directory of the project, i.e. the directory that contains the CMakeLists.txt.
 
+# Compatibilty
+Tested on works on my Linux machine (Debian based) after `cmake` and `libmp3lame-dev` packages have been installed. Tested on a few folders of reasonable well-formed WAV-files.

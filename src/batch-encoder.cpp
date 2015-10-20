@@ -9,7 +9,7 @@
 
 #include <pthread.h>
 
-#include "helper.h"
+#include "directory.h"
 #include "mp3encoder.h"
 #include "wavdecoder.h"
 

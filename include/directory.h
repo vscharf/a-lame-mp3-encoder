@@ -1,6 +1,6 @@
 // -*- C++ -*-
-#ifndef ALAMEMP3ENCODER_HELPER_H
-#define ALAMEMP3ENCODER_HELPER_H
+#ifndef ALAMEMP3ENCODER_DIRECTORY_H
+#define ALAMEMP3ENCODER_DIRECTORY_H
 
 #include <cstdint>
 #include <iosfwd>
@@ -24,4 +24,4 @@ std::vector<std::string> directory_entries(std::string path);
 // [ argument taken by value as it is modified inside the function ]
 } // namespace vscharf
 
-#endif // ALAMEMP3ENCODER_HELPER_H
+#endif // ALAMEMP3ENCODER_DIRECTORY_H

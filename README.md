@@ -12,7 +12,7 @@ Given a directory of .wav files encode them to .mp3 files leveraging parallelism
 8. the Boost library shall not be used
 9. the LAME encoder should be used with reasonable standard settings (e.g. quality based encoding with quality level "good")
 
-## Decision Rational
+## Decision rationale
 2. Given the additional information that typically a large number (> 100) of WAV-files will be converted, I decided to use per-file concurrency. In a scenario where a small number of large WAV-files has to be converted a per-chunk concurrency would be more suited. This however is a bit more difficult to implement. One very typical solution would be to use a pipeline, e.g. from Intel's TBB libraries.
 
 4. The code has been setup to be able to compile on Windows and Linux. Unfortunately I don't own a Windows Licences and couldn't test the resulting code. Keeping my fingers crossed ...

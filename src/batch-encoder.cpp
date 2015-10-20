@@ -72,6 +72,7 @@ int main(int argc, char* argv[])
 
 
   // mutex protected list of remaining files
+  const std::size_t n_wav_files = wav_files.size();
   mutex_protected<std::vector<std::string>> available_files(wav_files);
 
   // do the work on (joinable) threads
@@ -90,5 +91,8 @@ int main(int argc, char* argv[])
   for(auto& t : threads) {
     pthread_join(t, nullptr); // ignore error code as we will exit anyways
   }
+
+  std::cout << "Successfully converted " << n_wav_files << " WAV files to mp3." << std::endl;
+
   return 0;
 }

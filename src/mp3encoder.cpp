@@ -66,7 +66,7 @@ void Mp3Encoder::encode(WavDecoder& in, std::ostream& out, uint32_t nsamples /* 
   if(n > 0 && !out.write(buf_.data(), n)) throw decoder_error("Writing to output failed!");
 }
 
-#ifdef TEST_ENCODER
+#ifdef TEST_ENC
 #include <cassert>
 #include <fstream>
 #include <iostream>
@@ -108,4 +108,4 @@ int main(int argc, char* argv[])
   std::cout << "Test finished successfully!" << std::endl;
   return 0;
 }
-#endif // TEST_DECODER
+#endif // TEST_ENC
